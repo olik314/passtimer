@@ -315,3 +315,10 @@ td.w2p_fc,
 input[type=checkbox], input[type=radio] {
     margin: 4px 4px 0 0;
 }
+@font-face {
+    font-family:'u1f400';
+    src:url("../fonts/u1f400.ttf") format("truetype");
+    src:url("../fonts/u1f400.woff") format("woff");
+    font-weight:normal;
+    font-style:normal;
+}

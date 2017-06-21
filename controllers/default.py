@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from gluon.storage import Storage
 import math, random, string
+import hashlib
+import datetime
 
 
 def index():
@@ -23,7 +25,8 @@ def config():
 
     form = SQLFORM.factory(
         Field('release', type='upload', uploadfield='image_file', label='Release image',
-              requires=[IS_NOT_EMPTY(), IS_IMAGE(extensions=('jpeg', 'png'))]),
+              requires=[IS_NOT_EMPTY(error_message='You must provide a picture!'),
+                        IS_IMAGE(extensions=('jpeg', 'png'), error_message='Only JPG and PNG supported')]),
         Field('runtimer', type='integer', label='Countdown timer duration', comment='(in seconds)',
               requires=IS_NOT_EMPTY(), default=60),
         Field('num_password', type='integer', label='Generate # passwords', requires=IS_NOT_EMPTY(), default=30),
@@ -72,14 +75,12 @@ def genpasswords():
 
     if play_session is None:
         redirect(URL('index'))
-    elif play_session.generated_passwords == True:
+    elif play_session.generated_passwords:
         redirect(URL('index'))
 
     def genPasswd(length=10):
         return ''.join(
             random.SystemRandom().choice(string.ascii_letters + string.digits + '!$%#@?&-_') for _ in range(length))
-
-    import hashlib
 
     config = play_session.config
 
@@ -92,6 +93,7 @@ def genpasswords():
         md5.update(password)
         db.passwords.insert(playtime=session_id, md5=md5.hexdigest())
     db(db.playtime.id == session_id).update(generated_passwords=True)
+    db(db.playtime_stats.id == play_session.stats.id)
 
     if config.fake_percent is not None:
         fake_proportion = config.fake_percent / 100.0
@@ -108,20 +110,32 @@ def genpasswords():
 
 
 def playtime():
-    import hashlib
+    if session.playtime is None:
+        redirect(URL('index'))
 
     session_id = session.playtime.session_id
-    play_session = db((db.playtime.id == session_id) & (db.playtime.in_progress == True)).select().first()
+    if session.playtime.started:
+        play_session = db((db.playtime.id == session_id) & (db.playtime.in_progress == True)).select().first()
+    else:
+        play_session = db((db.playtime.id == session_id)
+                          & (db.playtime.in_progress == True) & (db.playtime.started == False)).select(db.playtime.id, db.playtime.uuid).first()
 
-    md5 = hashlib.md5()
-    md5.update(session.salt + play_session.uuid)
-    myigniter = md5.hexdigest()
+        if play_session is None:
+            redirect(URL('index'))
 
-    igniter = request.vars.igniter
+        md5 = hashlib.md5()
+        md5.update(session.salt + play_session.uuid)
+        myigniter = md5.hexdigest()
+        igniter = request.vars.igniter
+        reality_check = igniter == myigniter
 
-    reality_check = igniter == myigniter
+        if reality_check:
+            db(db.playtime.id == session_id).update(started=True, heartbeat=datetime.datetime.now())
+            session.playtime.started = True
+        else:
+            redirect(URL('index'))
 
-    return dict(value=reality_check)
+    return dict(play_session=play_session)
 
 
 @cache.action()

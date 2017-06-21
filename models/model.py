@@ -26,7 +26,9 @@ db.define_table('playtime',
                 Field('config', 'reference playtime_config', notnull=True),
                 Field('stats', 'reference playtime_stats', notnull=True),
                 Field('image', 'reference playtime_release', notnull=True),
-                Field('generated_passwords', type='boolean', notnull=True, default=False))
+                Field('generated_passwords', type='boolean', notnull=True, default=False),
+                Field('started', type='boolean', notnull=True, default=False),
+                Field('heartbeat', type='datetime'))
 
 db.define_table('passwords',
                 Field('playtime', type='reference playtime'),
