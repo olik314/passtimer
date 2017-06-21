@@ -1,0 +1,19 @@
+{{extend 'blanklayout.html'}}
+
+<style>
+    #starts,
+    #continues {
+        height: 150px;
+        padding-left: 4%;
+        padding-right: 4%;
+        font-size: 2.2em;
+    }
+</style>
+
+<center>
+    {{if session.playtime.session_id is None:}}
+    <input id="start" type="submit" class="btn btn-default" value="Start session" onclick="javascript:window.location.assign('{{=URL('config')}}')">
+    {{else:}}
+    <input id="continue" type="submit" class="btn btn-default" value="Continue session" onclick="javascript:window.location.assign('{{=URL('config')}}')">
+    {{pass}}
+</center>

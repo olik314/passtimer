@@ -1,0 +1,143 @@
+# -*- coding: utf-8 -*-
+from gluon.storage import Storage
+import math, random, string
+
+
+def index():
+    if session.playtime is None:
+        session.playtime = Storage()
+        session.salt = ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for _ in range(12))
+    return dict()
+
+
+def config():
+    if session.playtime is None:
+        db((db.playtime.in_progress == True)).update(in_progress=False)
+        session.playtime = Storage()
+    elif session.playtime.session_id is not None:
+        db((db.playtime.in_progress == True) & (db.playtime.id != session.playtime.session_id)).update(
+            in_progress=False)
+        redirect(URL('index'))
+    else:
+        db((db.playtime.in_progress == True)).update(in_progress=False)
+
+    form = SQLFORM.factory(
+        Field('release', type='upload', uploadfield='image_file', label='Release image',
+              requires=[IS_NOT_EMPTY(), IS_IMAGE(extensions=('jpeg', 'png'))]),
+        Field('runtimer', type='integer', label='Countdown timer duration', comment='(in seconds)',
+              requires=IS_NOT_EMPTY(), default=60),
+        Field('num_password', type='integer', label='Generate # passwords', requires=IS_NOT_EMPTY(), default=30),
+        Field('password_percent', type='integer', label='Password percentage needed for release',
+              requires=IS_NOT_EMPTY(), default=100),
+        Field('use_fake', type='boolean', label='Use fake passwords', default=False),
+        Field('fake_percent', type='integer', label='Percentage of fake passwords',
+              requires=IS_INT_IN_RANGE(-1, 51), default=10),
+        Field('use_events', type='boolean', label='Activate random events', default=False),
+        Field('event_percent', type='integer', label='Chance of firing a random event',
+              requires=IS_INT_IN_RANGE(-1, 101), default=20),
+        table_name='config')
+    vars = None
+    if form.process().accepted:
+        vars = request.vars
+
+        config_id = db.playtime_config.insert(runtimer=vars.runtimer, num_password=vars.num_password,
+                                              password_percent=vars.password_percent,
+                                              use_fake=vars.use_fake or False,
+                                              fake_percent=vars.fake_percent if vars.use_fake else None,
+                                              use_events=vars.use_events or False,
+                                              event_percent=vars.event_percent if vars.use_events else None)
+        stats_id = db.playtime_stats.insert()
+        release_id = db.playtime_release.insert(image=db.playtime_release.image.store(vars.release),
+                                                image_file=vars.release.value)
+        session_id = db.playtime.insert(config=config_id, stats=stats_id, image=release_id)
+
+        session.playtime.session_id = session_id
+
+        redirect(URL('genpasswords'))
+
+    elif form.errors:
+        response.flash = 'Form has errors'
+    else:
+        response.flash = ''
+
+    return dict(form=form, vars=vars)
+
+
+def genpasswords():
+    if session.playtime is None:
+        redirect(URL('index'))
+
+    session_id = session.playtime.session_id
+    play_session = db((db.playtime.id == session_id) & (db.playtime.in_progress == True)).select().first()
+
+    if play_session is None:
+        redirect(URL('index'))
+    elif play_session.generated_passwords == True:
+        redirect(URL('index'))
+
+    def genPasswd(length=10):
+        return ''.join(
+            random.SystemRandom().choice(string.ascii_letters + string.digits + '!$%#@?&-_') for _ in range(length))
+
+    import hashlib
+
+    config = play_session.config
+
+    password_list = list()
+    for _ in range(config.num_password):
+        password_list.append(genPasswd())
+
+    for password in password_list:
+        md5 = hashlib.md5()
+        md5.update(password)
+        db.passwords.insert(playtime=session_id, md5=md5.hexdigest())
+    db(db.playtime.id == session_id).update(generated_passwords=True)
+
+    if config.fake_percent is not None:
+        fake_proportion = config.fake_percent / 100.0
+        additional_fake = int(math.ceil(config.num_password * fake_proportion))
+        for _ in range(additional_fake):
+            password_list.append(genPasswd())
+
+    random.shuffle(password_list)
+
+    md5 = hashlib.md5()
+    md5.update(session.salt + play_session.uuid)
+
+    return dict(passwords=password_list, reality_check=md5.hexdigest())
+
+
+def playtime():
+    import hashlib
+
+    session_id = session.playtime.session_id
+    play_session = db((db.playtime.id == session_id) & (db.playtime.in_progress == True)).select().first()
+
+    md5 = hashlib.md5()
+    md5.update(session.salt + play_session.uuid)
+    myigniter = md5.hexdigest()
+
+    igniter = request.vars.igniter
+
+    reality_check = igniter == myigniter
+
+    return dict(value=reality_check)
+
+
+@cache.action()
+def download():
+    """
+    allows downloading of uploaded files
+    http://..../[app]/default/download/[filename]
+    """
+    return response.download(request, db)
+
+
+def call():
+    """
+    exposes services. for example:
+    http://..../[app]/default/call/jsonrpc
+    decorate with @services.jsonrpc the functions to expose
+    supports xml, json, xmlrpc, jsonrpc, amfrpc, rss, csv
+    """
+    return service()

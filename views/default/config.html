@@ -1,0 +1,124 @@
+{{extend 'blanklayout.html'}}
+
+<style>
+    #config-form {
+        margin: auto;
+        width: 50%;
+    }
+
+    .form-horizontal
+    .control-label {
+        padding-top: 0px;
+    }
+
+    #config_event_percent__row {
+        display: none;
+    }
+
+    #config_fake_percent__row {
+        display: none;
+    }
+</style>
+
+<script>
+
+    $(function() {
+
+        if ($('#config_use_events:checked').length === 1) {
+                $('#config_event_percent__row').css("display", "block");
+            } else {
+                $('#config_event_percent__row').css("display", "none");
+            }
+        if ($('#config_use_fake:checked').length === 1) {
+                $('#config_fake_percent__row').css("display", "block");
+            } else {
+                $('#config_fake_percent__row').css("display", "none");
+            }
+
+        var runtimer = $('#config_runtimer').attr({'type': 'number'}).change(function(){
+            if ($(this).val() > 900) {
+                $(this).val(1);
+            } else if ($(this).val() < 1) {
+                $(this).val(900);
+            }
+        });
+
+        $('#config_num_password__row').children('div').append('<div id="slider-num-password"></div>');
+        $('#slider-num-password').slider({
+            range: "max",
+            min: 10,
+            max: 255,
+            value: 30,
+            slide: function( event, ui ) {
+                $('#config_num_password').val( ui.value );
+            }
+        });
+        $('#config_num_password').attr({'readonly': ''})
+
+        $('#config_password_percent__row').children('div').append('<div id="slider-password-percent"></div>');
+        $('#slider-password-percent').slider({
+            range: "max",
+            min: 10,
+            max: 100,
+            value: 100,
+            slide: function( event, ui ) {
+                $('#config_password_percent').val( ui.value );
+            }
+        });
+        $('#config_password_percent').attr({'readonly': ''})
+
+        $('#config_fake_percent__row').children('div').append('<div id="slider-fake-percent"></div>');
+        $('#slider-fake-percent').slider({
+            range: "max",
+            min: 0,
+            max: 50,
+            value: 10,
+            slide: function( event, ui ) {
+                $('#config_fake_percent').val( ui.value );
+            }
+        });
+        $('#config_fake_percent').attr({'readonly': ''})
+
+        $('#config_event_percent__row').children('div').append('<div id="slider-event-percent"></div>');
+        $('#slider-event-percent').slider({
+            range: "max",
+            min: 0,
+            max: 100,
+            value: 20,
+            slide: function( event, ui ) {
+                $('#config_event_percent').val( ui.value );
+            }
+        });
+        $('#config_event_percent').attr({'readonly': ''})
+
+        $('#config_use_fake').change(function(){
+            if ($('#config_use_fake:checked').length === 1) {
+                $('#config_fake_percent__row').slideDown();
+            } else {
+                $('#config_fake_percent__row').slideUp();
+            }
+        });
+
+        $('#config_use_events').change(function(){
+        if ($('#config_use_events:checked').length === 1) {
+                $('#config_event_percent__row').slideDown();
+            } else {
+                $('#config_event_percent__row').slideUp();
+            }
+        });
+    });
+</script>
+
+<div id="config-form">
+    {{=form}}
+</div>
+
+<!--
+-Timer for runs
+-Number of passwords to generate
+-Number of passwords needed for release
+-Fake passwords check
+    -Fake password percent
+-Random event check
+    -Random event chance
+-->
