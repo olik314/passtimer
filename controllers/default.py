@@ -4,6 +4,14 @@ import math, random, string
 import hashlib
 import datetime
 
+# Possible statuses for playtime:
+READY = 'READY'
+IN_PROGRESS = 'IN_PROGRESS'
+STANDBY = 'STANDBY'
+STARTED = 'STARTED'
+FINISHED = 'FINISHED'
+STOPPED = 'STOPPED'
+
 
 def index():
     if session.playtime is None:
@@ -14,14 +22,15 @@ def index():
 
 def config():
     if session.playtime is None:
-        db((db.playtime.in_progress == True)).update(in_progress=False)
+        db((db.playtime.status == IN_PROGRESS) | (db.playtime.status == STANDBY)).update(status=STOPPED)
         session.playtime = Storage()
     elif session.playtime.session_id is not None:
-        db((db.playtime.in_progress == True) & (db.playtime.id != session.playtime.session_id)).update(
-            in_progress=False)
+        db(((db.playtime.status == IN_PROGRESS) | (db.playtime.status == STANDBY)) & (
+        db.playtime.id != session.playtime.session_id)).update(
+            status=STOPPED)
         redirect(URL('index'))
     else:
-        db((db.playtime.in_progress == True)).update(in_progress=False)
+        db((db.playtime.status == IN_PROGRESS) | (db.playtime.status == STANDBY)).update(status=STOPPED)
 
     form = SQLFORM.factory(
         Field('release', type='upload', uploadfield='image_file', label='Release image',
@@ -29,10 +38,12 @@ def config():
                         IS_IMAGE(extensions=('jpeg', 'png'), error_message='Only JPG and PNG supported')]),
         Field('runtimer', type='integer', label='Countdown timer duration', comment='(in seconds)',
               requires=IS_NOT_EMPTY(), default=60),
+        Field('use_time_limit', type='boolean', label='Set maximum session time', default=False),
+        Field('time_limit', label='Maximum session time', default=16200),
         Field('num_password', type='integer', label='Generate # passwords', requires=IS_NOT_EMPTY(), default=30),
         Field('password_percent', type='integer', label='Password percentage needed for release',
               requires=IS_NOT_EMPTY(), default=100),
-        Field('use_fake', type='boolean', label='Use fake passwords', default=False),
+        Field('use_fake', type='boolean', label='Activate fake passwords', default=False),
         Field('fake_percent', type='integer', label='Percentage of fake passwords',
               requires=IS_INT_IN_RANGE(-1, 51), default=10),
         Field('use_events', type='boolean', label='Activate random events', default=False),
@@ -48,7 +59,10 @@ def config():
                                               use_fake=vars.use_fake or False,
                                               fake_percent=vars.fake_percent if vars.use_fake else None,
                                               use_events=vars.use_events or False,
-                                              event_percent=vars.event_percent if vars.use_events else None)
+                                              event_percent=vars.event_percent if vars.use_events else None,
+                                              has_limit=vars.use_time_limit or False,
+                                              time_limit=datetime.datetime.now() + datetime.timedelta(
+                                                  seconds=int(vars.time_limit)) if vars.use_time_limit else None)
         stats_id = db.playtime_stats.insert()
         release_id = db.playtime_release.insert(image=db.playtime_release.image.store(vars.release),
                                                 image_file=vars.release.value)
@@ -71,11 +85,11 @@ def genpasswords():
         redirect(URL('index'))
 
     session_id = session.playtime.session_id
-    play_session = db((db.playtime.id == session_id) & (db.playtime.in_progress == True)).select().first()
+    play_session = db((db.playtime.id == session_id) & (db.playtime.status == READY)).select().first()
 
     if play_session is None:
         redirect(URL('index'))
-    elif play_session.generated_passwords:
+    elif play_session.status == STANDBY:
         redirect(URL('index'))
 
     def genPasswd(length=10):
@@ -92,8 +106,8 @@ def genpasswords():
         md5 = hashlib.md5()
         md5.update(password)
         db.passwords.insert(playtime=session_id, md5=md5.hexdigest())
-    db(db.playtime.id == session_id).update(generated_passwords=True)
-    db(db.playtime_stats.id == play_session.stats.id)
+    db(db.playtime.id == session_id).update(status=STANDBY)
+    db(db.playtime_stats.id == play_session.stats.id).update(start_time=datetime.datetime.now())
 
     if config.fake_percent is not None:
         fake_proportion = config.fake_percent / 100.0
@@ -113,12 +127,19 @@ def playtime():
     if session.playtime is None:
         redirect(URL('index'))
 
+    now = datetime.datetime.now()
+    countdown = 0
+
     session_id = session.playtime.session_id
     if session.playtime.started:
-        play_session = db((db.playtime.id == session_id) & (db.playtime.in_progress == True)).select().first()
+        play_session = db((db.playtime.id == session_id) & (db.playtime.status == IN_PROGRESS)).select().first()
+        delta = play_session.next_checkpoint - now
+
+        if delta.days == 0:
+            countdown = delta.seconds
+
     else:
-        play_session = db((db.playtime.id == session_id)
-                          & (db.playtime.in_progress == True) & (db.playtime.started == False)).select(db.playtime.id, db.playtime.uuid).first()
+        play_session = db((db.playtime.id == session_id) & (db.playtime.status == STANDBY)).select().first()
 
         if play_session is None:
             redirect(URL('index'))
@@ -130,12 +151,14 @@ def playtime():
         reality_check = igniter == myigniter
 
         if reality_check:
-            db(db.playtime.id == session_id).update(started=True, heartbeat=datetime.datetime.now())
+            delta = datetime.timedelta(seconds=play_session.config.runtimer)
+            db(db.playtime.id == session_id).update(status=IN_PROGRESS, heartbeat=now, next_checkpoint=now + delta)
             session.playtime.started = True
+            countdown = delta.seconds
         else:
             redirect(URL('index'))
 
-    return dict(play_session=play_session)
+    return dict(play_session=play_session, countdown=countdown)
 
 
 @cache.action()

@@ -11,13 +11,16 @@
         padding-top: 0px;
     }
 
-    #config_event_percent__row {
+    #config_event_percent__row,
+    #config_fake_percent__row,
+    #config_time_limit__row {
         display: none;
     }
 
-    #config_fake_percent__row {
+    #config_time_limit {
         display: none;
     }
+
 </style>
 
 <script>
@@ -35,6 +38,12 @@
                 $('#config_fake_percent__row').css("display", "none");
             }
 
+        if ($('#config_use_time_limit:checked').length === 1) {
+                $('#config_time_limit__row').css("display", "block");
+            } else {
+                $('#config_time_limit__row').css("display", "none");
+            }
+
         var runtimer = $('#config_runtimer').attr({'type': 'number'}).change(function(){
             if ($(this).val() > 900) {
                 $(this).val(1);
@@ -43,12 +52,27 @@
             }
         });
 
+        $('#config_time_limit__row').children('div').prepend('<input id="config_time_limit_fake" class="form-control string" readonly="readonly" type="text" value="'+ $('#config_time_limit').val().toTime() +'">');
+        $('#config_time_limit__row').children('div').append('<div id="slider-time-limit"></div>');
+        $('#slider-time-limit').slider({
+            range: "max",
+            min: 0,
+            max: 3600*24,
+            step: 60*5,
+            value: $('#config_time_limit').val(),
+            slide: function( event, ui ) {
+                $('#config_time_limit').val( ui.value );
+                $('#config_time_limit_fake').val( ui.value.toString().toTime() );
+            }
+        });
+        $('#config_time_limit').attr({'readonly': ''})
+
         $('#config_num_password__row').children('div').append('<div id="slider-num-password"></div>');
         $('#slider-num-password').slider({
             range: "max",
             min: 10,
             max: 255,
-            value: 30,
+            value: $('#config_num_password').val(),
             slide: function( event, ui ) {
                 $('#config_num_password').val( ui.value );
             }
@@ -60,7 +84,7 @@
             range: "max",
             min: 10,
             max: 100,
-            value: 100,
+            value: $('#config_password_percent').val(),
             slide: function( event, ui ) {
                 $('#config_password_percent').val( ui.value );
             }
@@ -72,7 +96,7 @@
             range: "max",
             min: 0,
             max: 50,
-            value: 10,
+            value: $('#config_fake_percent').val(),
             slide: function( event, ui ) {
                 $('#config_fake_percent').val( ui.value );
             }
@@ -84,7 +108,7 @@
             range: "max",
             min: 0,
             max: 100,
-            value: 20,
+            value: $('#config_event_percent').val(),
             slide: function( event, ui ) {
                 $('#config_event_percent').val( ui.value );
             }
@@ -104,6 +128,14 @@
                 $('#config_event_percent__row').slideDown();
             } else {
                 $('#config_event_percent__row').slideUp();
+            }
+        });
+
+        $('#config_use_time_limit').change(function(){
+        if ($('#config_use_time_limit:checked').length === 1) {
+                $('#config_time_limit__row').slideDown();
+            } else {
+                $('#config_time_limit__row').slideUp();
             }
         });
     });

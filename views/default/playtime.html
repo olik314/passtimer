@@ -1,6 +1,10 @@
 {{extend 'blanklayout.html'}}
 
 <style>
+    #heartbeat.beat {
+        opacity: 1;
+    }
+
     #heartbeat {
         position: absolute;
         font-size: 5.5em;
@@ -8,17 +12,53 @@
         top: 0px;
         line-height: 55px;
         right: 0px;
+        opacity: 0;
+    }
+
+    #countdown-container {
+        position: absolute;
+    }
+
+    #countdown {
+        display: inline-block;
+        background-color: rgba(0, 0, 0, 0.09);
+        padding: 5px;
+        padding-right: 10px;
+        padding-left: 10px;
+        border-radius: 4px;
     }
 </style>
 
 <script>
-    $(document).ready(function(){
-        var heartbeat = setInterval(function(){
-            jQuery.post("{{=URL('utils', 'heartbeat')}}", {}, function(data){
-                console.log(data)
-            },"json" );
-        }, 10000);
+    function countdown() {
+        jQuery.post("{{=URL('utils', 'countdown')}}", {}, function(data, status) {
+            console.log(data)
+        });
+    }
+
+    function heartbeat() {
+        jQuery.post("{{=URL('utils', 'heartbeat')}}")
+            .done(function() {
+                $("#heartbeat").addClass("beat", 500, function() {
+                    $(this).removeClass("beat", 500);
+            });
+        });
+    };
+
+    $(document).ready(function() {
+        heartbeat();
+        var heartbeat_interval = setInterval(heartbeat, 10000);
+        var countdown_val = {{=countdown}};
+        $("#countdown").html(countdown_val.toString().toMinutes());
+        var countdown_interval = setInterval(countdown, 1000);
     });
 </script>
+<div class="countdown-container">
+    <center>
+        <div id="countdown">
+            XX:XX
+        </div>
+    </center>
+</div>
 
 <div id="heartbeat">&#128420;</div>

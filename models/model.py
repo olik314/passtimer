@@ -7,7 +7,9 @@ db.define_table('playtime_config',
                 Field('use_fake', type='boolean', notnull=True, default=False),
                 Field('fake_percent', type='double', requires=IS_FLOAT_IN_RANGE(-1, 51)),
                 Field('use_events', type='boolean', notnull=True, default=False),
-                Field('event_percent', type='double', requires=IS_FLOAT_IN_RANGE(-1, 101)))
+                Field('event_percent', type='double', requires=IS_FLOAT_IN_RANGE(-1, 101)),
+                Field('has_limit', type='boolean', notnull=True, default=False),
+                Field('time_limit', type='datetime'))
 
 db.define_table('playtime_stats',
                 Field('start_time', type='datetime'),
@@ -20,15 +22,23 @@ db.define_table('playtime_release',
                 Field('image', 'upload', uploadfield='image_file'),
                 Field('image_file', 'blob'))
 
+# Possible statuses for playtime:
+READY = 'READY'
+IN_PROGRESS = 'IN_PROGRESS'
+STANDBY = 'STANDBY'
+STARTED = 'STARTED'
+FINISHED = 'FINISHED'
+STOPPED = 'STOPPED'
+
 db.define_table('playtime',
-                Field('in_progress', type='boolean', notnull=True, default=True),
+                Field('status', type='string', notnull=True, default=READY),
                 Field('uuid', 'string', length=64, default=lambda: str(uuid.uuid4())),
                 Field('config', 'reference playtime_config', notnull=True),
                 Field('stats', 'reference playtime_stats', notnull=True),
                 Field('image', 'reference playtime_release', notnull=True),
-                Field('generated_passwords', type='boolean', notnull=True, default=False),
-                Field('started', type='boolean', notnull=True, default=False),
-                Field('heartbeat', type='datetime'))
+                Field('heartbeat', type='datetime'),
+                Field('next_checkpoint', type='datetime'))
+
 
 db.define_table('passwords',
                 Field('playtime', type='reference playtime'),

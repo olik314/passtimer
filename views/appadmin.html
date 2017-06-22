@@ -9,6 +9,12 @@
 });
 //--></script>
 
+<style>
+  td, th {
+	padding-right: 30px;
+  }
+</style>
+
 {{if request.function=='index':}}
 <h2>{{=T("Available Databases and Tables")}}</h2>
   {{if not databases:}}{{=T("No databases in this application")}}{{pass}}
