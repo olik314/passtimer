@@ -5,6 +5,15 @@
         opacity: 1;
     }
 
+    #heartbeat.broken {
+        color: red;
+        opacity: 1;
+    }
+
+    .invisible-ink {
+        height: 0px;
+    }
+
     #heartbeat {
         position: absolute;
         font-size: 5.5em;
@@ -21,7 +30,7 @@
 
     #countdown {
         display: inline-block;
-        background-color: rgba(0, 0, 0, 0.09);
+        background-color: #eeeeee;
         padding: 5px;
         padding-right: 10px;
         padding-left: 10px;
@@ -31,18 +40,28 @@
 
 <script>
     function countdown() {
-        jQuery.post("{{=URL('utils', 'countdown')}}", {}, function(data, status) {
-            console.log(data)
-        });
+        jQuery.post("{{=URL('utils', 'countdown.json')}}")
+            .done(function(data, status) {
+                $("#countdown").html(data.sec_left.toString().toMinutes());
+                if (data.sec_left <= 10) {
+                    $("#countdown").effect('highlight', { color: '#ff4444'});
+                } else {
+                    $("#countdown").effect('highlight', { color: '#ffff99'});
+                }
+            });
     }
 
     function heartbeat() {
-        jQuery.post("{{=URL('utils', 'heartbeat')}}")
-            .done(function() {
+        jQuery.post("{{=seclink}}")
+            .done(function(data, status) {
+                $("#heartbeat").removeClass();
                 $("#heartbeat").addClass("beat", 500, function() {
                     $(this).removeClass("beat", 500);
+                });
+            })
+            .fail(function(data, status) {
+                $("#heartbeat").addClass("broken", 500);
             });
-        });
     };
 
     $(document).ready(function() {
@@ -50,14 +69,13 @@
         var heartbeat_interval = setInterval(heartbeat, 10000);
         var countdown_val = {{=countdown}};
         $("#countdown").html(countdown_val.toString().toMinutes());
+        $("#countdown").removeClass('invisible-ink', 10);
         var countdown_interval = setInterval(countdown, 1000);
     });
 </script>
 <div class="countdown-container">
     <center>
-        <div id="countdown">
-            XX:XX
-        </div>
+        <div id="countdown" class="invisible-ink"></div>
     </center>
 </div>
 

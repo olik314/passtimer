@@ -9,14 +9,13 @@ READY = 'READY'
 IN_PROGRESS = 'IN_PROGRESS'
 STANDBY = 'STANDBY'
 STARTED = 'STARTED'
-FINISHED = 'FINISHED'
+COMPLETED = 'COMPLETED'
 STOPPED = 'STOPPED'
 
 
 def index():
     if session.playtime is None:
         session.playtime = Storage()
-        session.salt = ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for _ in range(12))
     return dict()
 
 
@@ -26,7 +25,7 @@ def config():
         session.playtime = Storage()
     elif session.playtime.session_id is not None:
         db(((db.playtime.status == IN_PROGRESS) | (db.playtime.status == STANDBY)) & (
-        db.playtime.id != session.playtime.session_id)).update(
+            db.playtime.id != session.playtime.session_id)).update(
             status=STOPPED)
         redirect(URL('index'))
     else:
@@ -117,10 +116,7 @@ def genpasswords():
 
     random.shuffle(password_list)
 
-    md5 = hashlib.md5()
-    md5.update(session.salt + play_session.uuid)
-
-    return dict(passwords=password_list, reality_check=md5.hexdigest())
+    return dict(passwords=password_list, seclink=URL('playtime'))
 
 
 def playtime():
@@ -144,21 +140,13 @@ def playtime():
         if play_session is None:
             redirect(URL('index'))
 
-        md5 = hashlib.md5()
-        md5.update(session.salt + play_session.uuid)
-        myigniter = md5.hexdigest()
-        igniter = request.vars.igniter
-        reality_check = igniter == myigniter
 
-        if reality_check:
-            delta = datetime.timedelta(seconds=play_session.config.runtimer)
-            db(db.playtime.id == session_id).update(status=IN_PROGRESS, heartbeat=now, next_checkpoint=now + delta)
-            session.playtime.started = True
-            countdown = delta.seconds
-        else:
-            redirect(URL('index'))
+        delta = datetime.timedelta(seconds=play_session.config.runtimer)
+        db(db.playtime.id == session_id).update(status=IN_PROGRESS, heartbeat=now, next_checkpoint=now + delta)
+        session.playtime.started = True
+        countdown = delta.seconds
 
-    return dict(play_session=play_session, countdown=countdown)
+    return dict(play_session=play_session, countdown=countdown, seclink=URL('utils', 'heartbeat'))
 
 
 @cache.action()
