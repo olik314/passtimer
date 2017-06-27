@@ -10,10 +10,6 @@
         opacity: 1;
     }
 
-    .invisible-ink {
-        height: 0px;
-    }
-
     #heartbeat {
         position: absolute;
         font-size: 5.5em;
@@ -36,22 +32,90 @@
         padding-left: 10px;
         border-radius: 4px;
     }
+
+    #trial {
+
+    }
+
+    #outer-container {
+        overflow: hidden;
+        transition: height 0.3s;
+        height: 50px;
+        padding: 10px;
+        width: 70%;
+        margin: 50px;
+        margin-left: auto;
+        margin-right: auto;
+        border: 1px solid;
+        border-radius: 4px;
+    }
 </style>
 
 <script>
-    function countdown() {
-        jQuery.post("{{=URL('utils', 'countdown.json')}}")
-            .done(function(data, status) {
-                $("#countdown").html(data.sec_left.toString().toMinutes());
-                if (data.sec_left <= 10) {
-                    $("#countdown").effect('highlight', { color: '#ff4444'});
-                } else {
-                    $("#countdown").effect('highlight', { color: '#ffff99'});
-                }
-            });
+
+    var interval = 1000; // ms
+    var expected = Date.now();
+
+    function countdowsn() {
+        if (countdown_val % 5 == 0 || countdown_val <= 5 || countdown_val <= 0) {
+            jQuery.post("{{=URL('utils', 'resync.json')}}")
+                .done(function(data, status) {
+                    countdown_val = data.sec_left;
+                    overdue = data.overdue;
+                    if (overdue) {
+                        trial();
+                    }
+                });
+        }
+
+        var forshow = countdown_val - 1
+        $("#countdown").html(forshow.toString().toMinutes());
+        if (countdown_val <= 10) {
+            $("#countdown").effect('highlight', { color: '#ff4444'});
+        } else {
+            $("#countdown").effect('highlight', { color: '#ffff99'});
+        }
+
+        if (countdown_val > 10) {
+            countdown_val = countdown_val - 1;
+        }
+    }
+
+    function step() {
+        var dt = Date.now() - expected; // drift
+        if (dt > interval) {
+            // something really bad happened. Maybe the browser (tab) was inactive?
+            // possibly special handling to avoid futile "catch up" run
+        }
+
+        if (countdown_val % 5 == 0 || countdown_val <= 5 || countdown_val <= 0) {
+            var before = Date.now()
+            jQuery.post("{{=URL('utils', 'resync.json')}}")
+                .done(function(data, status) {
+                    countdown_val = Math.floor((data.next_checkpoint - Date.now())/1000);
+                    if (data.status === "OVERDUE") {
+                        trial();
+                    }
+                    var additional = Date.now() - before;
+                    dt += additional;
+                });
+        }
+
+        $("#countdown").html(Math.floor(countdown_val).toString().toMinutes());
+        if (countdown_val <= 10) {
+            $("#countdown").effect('highlight', { color: '#ff4444'});
+        } else {
+            $("#countdown").effect('highlight', { color: '#ffff99'});
+        }
+
+        countdown_val = countdown_val - 1;
+
+        expected += interval;
+        setTimeout(step, Math.max(0, interval - dt)); // take into account drift
     }
 
     function heartbeat() {
+
         jQuery.post("{{=seclink}}")
             .done(function(data, status) {
                 $("#heartbeat").removeClass();
@@ -64,13 +128,24 @@
             });
     };
 
+    function trial() {
+        jQuery.post("{{=URL('trials', 'index')}}")
+            .done(function(data, status) {
+                $("#trial").html(data);
+                setTimeout(function() {
+                    var height = document.getElementById("trial").offsetHeight + 20 + "px";
+                    $("#outer-container").css("height", height);
+                }, 300);
+            });
+    }
+
     $(document).ready(function() {
         heartbeat();
-        var heartbeat_interval = setInterval(heartbeat, 10000);
-        var countdown_val = {{=countdown}};
+        heartbeat_interval = setInterval(heartbeat, 10000);
+        countdown_val = {{=countdown}};
         $("#countdown").html(countdown_val.toString().toMinutes());
-        $("#countdown").removeClass('invisible-ink', 10);
-        var countdown_interval = setInterval(countdown, 1000);
+        step();
+        trial();
     });
 </script>
 <div class="countdown-container">
@@ -80,3 +155,9 @@
 </div>
 
 <div id="heartbeat">&#128420;</div>
+
+<div id="outer-container">
+    <center>
+        <div id="trial"></div>
+    </center>
+</div>

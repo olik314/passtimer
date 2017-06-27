@@ -3,6 +3,7 @@ from gluon.storage import Storage
 import math, random, string
 import hashlib
 import datetime
+from randomsalt import SaltyCracker
 
 # Possible statuses for playtime:
 READY = 'READY'
@@ -12,6 +13,9 @@ STARTED = 'STARTED'
 COMPLETED = 'COMPLETED'
 STOPPED = 'STOPPED'
 
+_sc = SaltyCracker()
+KEY = _sc.getSecret()
+SALT = _sc.getSalt()
 
 def index():
     if session.playtime is None:
@@ -140,13 +144,13 @@ def playtime():
         if play_session is None:
             redirect(URL('index'))
 
-
         delta = datetime.timedelta(seconds=play_session.config.runtimer)
         db(db.playtime.id == session_id).update(status=IN_PROGRESS, heartbeat=now, next_checkpoint=now + delta)
         session.playtime.started = True
         countdown = delta.seconds
 
-    return dict(play_session=play_session, countdown=countdown, seclink=URL('utils', 'heartbeat'))
+    return dict(play_session=play_session, countdown=countdown, trial='',
+                seclink=URL('utils', 'heartbeat', hmac_key=KEY, salt=SALT))
 
 
 @cache.action()

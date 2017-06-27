@@ -25,10 +25,3 @@ def validateToken(token, salt):
         return True
     else:
         return False
-
-if __name__ == '__main__':
-    salt = '4lkX6kPdbXiT'
-
-    token = generateToken(salt)
-    print token
-    print validateToken(token, salt)
