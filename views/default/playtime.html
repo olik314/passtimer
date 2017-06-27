@@ -34,7 +34,6 @@
     }
 
     #trial {
-
     }
 
     #outer-container {
@@ -48,7 +47,9 @@
         margin-right: auto;
         border: 1px solid;
         border-radius: 4px;
+
     }
+
 </style>
 
 <script>
@@ -92,16 +93,16 @@
             var before = Date.now()
             jQuery.post("{{=URL('utils', 'resync.json')}}")
                 .done(function(data, status) {
-                    countdown_val = Math.floor((data.next_checkpoint - Date.now())/1000);
+                    var additional = Date.now() - before;
+                    countdown_val = Math.floor((data.next_checkpoint - Date.now() + additional)/1000);
                     if (data.status === "OVERDUE") {
                         trial();
                     }
-                    var additional = Date.now() - before;
                     dt += additional;
                 });
         }
 
-        $("#countdown").html(Math.floor(countdown_val).toString().toMinutes());
+        $("#countdown").html(Math.round(countdown_val).toString().toMinutes());
         if (countdown_val <= 10) {
             $("#countdown").effect('highlight', { color: '#ff4444'});
         } else {
@@ -133,7 +134,7 @@
             .done(function(data, status) {
                 $("#trial").html(data);
                 setTimeout(function() {
-                    var height = document.getElementById("trial").offsetHeight + 20 + "px";
+                    var height = Math.max(120, document.getElementById("trial").offsetHeight) + 20 + "px";
                     $("#outer-container").css("height", height);
                 }, 300);
             });
@@ -147,6 +148,7 @@
         step();
         trial();
     });
+
 </script>
 <div class="countdown-container">
     <center>
@@ -155,9 +157,10 @@
 </div>
 
 <div id="heartbeat">&#128420;</div>
-
-<div id="outer-container">
-    <center>
-        <div id="trial"></div>
-    </center>
+<div style="position: relative; height: 100%">
+    <div id="outer-container">
+        <center style="/*display: table-cell; vertical-align: middle;*/">
+            <div id="trial"></div>
+        </center>
+    </div>
 </div>
