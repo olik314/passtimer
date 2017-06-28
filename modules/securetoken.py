@@ -7,8 +7,8 @@ _DELTA = datetime.timedelta(seconds=10)
 def generateToken(salt, moment=None):
     if moment is None:
         moment = datetime.datetime.now()
-    slice = moment.replace(second=(moment.second / 10) * 10, microsecond=0)
-    random.seed(str(slice) + salt)
+    time_slice = moment.replace(second=(moment.second / 10) * 10, microsecond=0)
+    random.seed(str(time_slice) + salt)
     token = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
 
     return token

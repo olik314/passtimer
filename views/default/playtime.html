@@ -39,14 +39,14 @@
     #outer-container {
         overflow: hidden;
         transition: height 0.3s;
-        height: 50px;
+        height: 500px;
         padding: 10px;
         width: 70%;
         margin: 50px;
         margin-left: auto;
         margin-right: auto;
-        border: 1px solid;
-        border-radius: 4px;
+        /*border: 1px solid;/*
+        /*border-radius: 4px;/*
 
     }
 
@@ -56,33 +56,10 @@
 
     var interval = 1000; // ms
     var expected = Date.now();
+    var additional = 0;
+    var countdown_val = 0;
 
-    function countdowsn() {
-        if (countdown_val % 5 == 0 || countdown_val <= 5 || countdown_val <= 0) {
-            jQuery.post("{{=URL('utils', 'resync.json')}}")
-                .done(function(data, status) {
-                    countdown_val = data.sec_left;
-                    overdue = data.overdue;
-                    if (overdue) {
-                        trial();
-                    }
-                });
-        }
-
-        var forshow = countdown_val - 1
-        $("#countdown").html(forshow.toString().toMinutes());
-        if (countdown_val <= 10) {
-            $("#countdown").effect('highlight', { color: '#ff4444'});
-        } else {
-            $("#countdown").effect('highlight', { color: '#ffff99'});
-        }
-
-        if (countdown_val > 10) {
-            countdown_val = countdown_val - 1;
-        }
-    }
-
-    function step() {
+    function countdown() {
         var dt = Date.now() - expected; // drift
         if (dt > interval) {
             // something really bad happened. Maybe the browser (tab) was inactive?
@@ -93,26 +70,34 @@
             var before = Date.now()
             jQuery.post("{{=URL('utils', 'resync.json')}}")
                 .done(function(data, status) {
-                    var additional = Date.now() - before;
+                    additional = Date.now() - before;
                     countdown_val = Math.floor((data.next_checkpoint - Date.now() + additional)/1000);
                     if (data.status === "OVERDUE") {
                         trial();
                     }
-                    dt += additional;
                 });
         }
 
-        $("#countdown").html(Math.round(countdown_val).toString().toMinutes());
-        if (countdown_val <= 10) {
+        if (countdown_val - 10 < 0) {
+            $("#countdown").html("OVERDUE");
+            $("#lock").slideUp();
+        } else {
+            $("#countdown").html(Math.round(countdown_val - 10).toString().toMinutes());
+        }
+
+        if (countdown_val - 10 > 5) {
+            $("#countdown").effect('highlight', { color: '#ffff99'});
+        } else if (countdown_val - 10 <= 5 && countdown_val - 10 >= 0) {
             $("#countdown").effect('highlight', { color: '#ff4444'});
         } else {
-            $("#countdown").effect('highlight', { color: '#ffff99'});
+            $("#countdown").css('background-color', '#ff4444');
         }
 
         countdown_val = countdown_val - 1;
 
         expected += interval;
-        setTimeout(step, Math.max(0, interval - dt)); // take into account drift
+        setTimeout(countdown, Math.max(0, interval - dt - additional)); // take into account drift
+        additional = 0;
     }
 
     function heartbeat() {
@@ -130,14 +115,16 @@
     };
 
     function trial() {
-        jQuery.post("{{=URL('trials', 'index')}}")
-            .done(function(data, status) {
-                $("#trial").html(data);
-                setTimeout(function() {
-                    var height = Math.max(120, document.getElementById("trial").offsetHeight) + 20 + "px";
-                    $("#outer-container").css("height", height);
-                }, 300);
-            });
+        $("#countdown").css('background-color', '#eeeeee');
+        if (countdown_val - 9 < 0) {
+            $("#countdown").html("OVERDUE");
+        } else {
+            $("#countdown").html(Math.round(countdown_val - 9).toString().toMinutes());
+            jQuery.post("{{=URL('trials', 'index')}}")
+                .done(function(data, status) {
+                    $("#trial").html(data);
+                });
+        }
     }
 
     $(document).ready(function() {
@@ -145,7 +132,7 @@
         heartbeat_interval = setInterval(heartbeat, 10000);
         countdown_val = {{=countdown}};
         $("#countdown").html(countdown_val.toString().toMinutes());
-        step();
+        countdown();
         trial();
     });
 
@@ -157,9 +144,9 @@
 </div>
 
 <div id="heartbeat">&#128420;</div>
-<div style="position: relative; height: 100%">
-    <div id="outer-container">
-        <center style="/*display: table-cell; vertical-align: middle;*/">
+<div>
+    <div style="display: table;" id="outer-container">
+        <center style="display: table-cell; vertical-align: middle;">
             <div id="trial"></div>
         </center>
     </div>

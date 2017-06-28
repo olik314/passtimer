@@ -110,7 +110,6 @@ def genpasswords():
         md5.update(password)
         db.passwords.insert(playtime=session_id, md5=md5.hexdigest())
     db(db.playtime.id == session_id).update(status=STANDBY)
-    db(db.playtime_stats.id == play_session.stats.id).update(start_time=datetime.datetime.now())
 
     if config.fake_percent is not None:
         fake_proportion = config.fake_percent / 100.0
@@ -146,6 +145,7 @@ def playtime():
 
         delta = datetime.timedelta(seconds=play_session.config.runtimer)
         db(db.playtime.id == session_id).update(status=IN_PROGRESS, heartbeat=now, next_checkpoint=now + delta)
+        db(db.playtime_stats.id == play_session.stats.id).update(start_time=now)
         session.playtime.started = True
         countdown = delta.seconds
 

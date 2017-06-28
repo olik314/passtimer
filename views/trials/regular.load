@@ -1,5 +1,4 @@
-<form action=""
-      enctype="multipart/form-data" method="post">
-    <input id="key" type="text">
-    <input id="start" type="submit" class="btn btn-default invisible-ink" value="Start">
+<form id="lock" action="{{=URL('trials', 'validate.json')}}" target="dummyframe" method="post">
+    <input id="key" name="key" type="text">
+    <input id="pad" type="submit" class="btn btn-default invisible-ink" value="Submit">
 </form>

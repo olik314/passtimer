@@ -3,11 +3,11 @@ import uuid
 db.define_table('playtime_config',
                 Field('runtimer', type='integer', requires=IS_NOT_EMPTY(), notnull=True),
                 Field('num_password', type='integer', requires=IS_INT_IN_RANGE(9, 256)),
-                Field('password_percent', type='double', notnull=True, requires=IS_FLOAT_IN_RANGE(-1, 101)),
+                Field('password_percent', type='double', notnull=True, requires=IS_FLOAT_IN_RANGE(-1, 101), default=100.0),
                 Field('use_fake', type='boolean', notnull=True, default=False),
-                Field('fake_percent', type='double', requires=IS_FLOAT_IN_RANGE(-1, 51)),
+                Field('fake_percent', type='double', requires=IS_FLOAT_IN_RANGE(-1, 51), default=0.0),
                 Field('use_events', type='boolean', notnull=True, default=False),
-                Field('event_percent', type='double', requires=IS_FLOAT_IN_RANGE(-1, 101)),
+                Field('event_percent', type='double', requires=IS_FLOAT_IN_RANGE(-1, 101), default=0.0),
                 Field('has_limit', type='boolean', notnull=True, default=False),
                 Field('time_limit', type='datetime'))
 
